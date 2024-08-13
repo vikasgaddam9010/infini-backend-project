@@ -4,8 +4,10 @@ const sqlite3 = require('sqlite3')
 const path = require('path')
 const bcrypt = require('bcrypt')
 const jwttoken = require('jsonwebtoken')
+const cors = require('cors')
 
 const app = express()
+app.use(cors({origin: '*'}))
 app.use(express.json())
 
 let dataBase
@@ -126,7 +128,6 @@ app.post('/add-events/', check, async (req, res) => {
 
 app.get('/all-items/:event_id/', check, async (req, res) => {
   const {event_id} = req.params
-  console.log(event_id)
   const dbRes = await dataBase.get(
     `SELECT * FROM user_uploaded WHERE event_id = '${event_id}';`,
   )
