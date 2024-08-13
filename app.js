@@ -13,7 +13,7 @@ let dataBase
 const serverStart = async () => {
   try {
     dataBase = await open({
-      filename: path.join(__dirname, 'photoDataBase.db'),
+      filename: path.join(__dirname, 'photoShopeData.db'),
       driver: sqlite3.Database,
     })
     console.log('Server has started...')
@@ -27,8 +27,6 @@ serverStart()
 
 const check = (req, res, next) => {
   const jwt = req.headers.authorization.split(' ')[1]
-  console.log(jwt)
-
   if (jwt === undefined) {
     res.status(401)
     res.send('Invalid JWT Token')
@@ -39,7 +37,6 @@ const check = (req, res, next) => {
         res.send('Invalid JWT Token')
       } else {
         req.username = payload.username
-        console.log(payload.username)
         next()
       }
     })
@@ -47,16 +44,16 @@ const check = (req, res, next) => {
 }
 
 app.post('/register/', async (req, res) => {
-  const {username, password} = req.body
+  const {id, username, password} = req.body
+  //console.log(id, username, password)
 
   const checkUserNameInDb = await dataBase.get(
     `SELECT * FROM users WHERE username = '${username}';`,
   )
-  console.log(checkUserNameInDb)
   if (checkUserNameInDb === undefined) {
     const hasedPassword = await bcrypt.hash(password, 10)
     await dataBase.run(
-      `INSERT INTO users (username, password) VALUES ('${username}', '${hasedPassword}');`,
+      `INSERT INTO users (id, username, password) VALUES ('${id}', '${username}', '${hasedPassword}');`,
     )
     res.status(200).send({message: 'User Added'})
   } else {
@@ -86,17 +83,45 @@ app.post('/log-in/', async (req, res) => {
 
 //API - 2
 app.get('/get-events/', check, async (req, res) => {
-  const dbRes = await dataBase.all(`SELECT * FROM user_uploaded;`)
-  res.status(200).send(dbRes)
+  try {
+    const username = req.username
+
+    const query = `SELECT * FROM user_uploaded WHERE username = ?`
+    const params = [username]
+
+    const dbRes = await dataBase.all(query, params)
+
+    const queryID = `SELECT * FROM users WHERE username = ?`
+    const paramsID = [username]
+
+    const dbResID = await dataBase.get(queryID, paramsID)
+
+    if (dbRes.length === 0) {
+      return res.status(404).send({
+        message: 'No records found for the specified username.',
+        dbRes: [],
+      })
+    }
+
+    res.status(200).json({dbRes, username: req.username, id: dbResID.id})
+  } catch (error) {
+    console.error('Database query error:', error.message)
+
+    res
+      .status(500)
+      .send({message: 'An error occurred while processing your request.'})
+  }
 })
 
 //API - 3
 app.post('/add-events/', check, async (req, res) => {
   const {eventId, eventTitle, fileUrls} = req.body
   const dbRes = await dataBase.run(
-    `INSERT INTO user_uploaded (event_id, username, event_title, uploades) VALUES ('${eventId}', '${req.username}', '${eventTitle}', '${fileUrls}');`,
+    `INSERT INTO user_uploaded (event_id, username, event_title, uploads) VALUES ('${eventId}', '${req.username}', '${eventTitle}', '${fileUrls}');`,
   )
-  res.status(200).send({message: 'Event Details Added...'})
+  res
+    .status(200)
+    .send({message: 'Event Details Added...', dbRes, username: req.username})
 })
 
 app.listen(3000)
