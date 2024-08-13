@@ -124,6 +124,15 @@ app.post('/add-events/', check, async (req, res) => {
     .send({message: 'Event Details Added...', dbRes, username: req.username})
 })
 
+app.get('/all-items/:event_id/', check, async (req, res) => {
+  const {event_id} = req.params
+  console.log(event_id)
+  const dbRes = await dataBase.get(
+    `SELECT * FROM user_uploaded WHERE event_id = '${event_id}';`,
+  )
+  res.status(200).send({dbRes})
+})
+
 app.listen(3000)
 
 module.exports = app
